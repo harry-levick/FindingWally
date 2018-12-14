@@ -688,28 +688,5 @@
             }
          }
       }
-   },
-   "21_0_0.jpg18826":{
-      "fileref":"",
-      "size":18826,
-      "filename":"21_0_0.jpg",
-      "base64_img_data":"",
-      "file_attributes":{
-
-      },
-      "regions":{
-         "0":{
-            "shape_attributes":{
-               "name":"rect",
-               "x":25,
-               "y":56,
-               "width":62,
-               "height":73
-            },
-            "region_attributes":{
-
-            }
-         }
-      }
    }
 }
