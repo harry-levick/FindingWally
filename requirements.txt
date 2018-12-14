@@ -45,7 +45,6 @@ nbconvert==5.3.1
 nbformat==4.4.0
 networkx==2.1
 nose==1.3.7
-notebook==5.6.0
 numpy==1.15.0
 opencv-python==3.4.2.17
 packaging==17.1
