@@ -145,7 +145,129 @@ if __name__ == '__main__' :
     import argparse
 
     # parse the command line arguments
-    parser = argparse
+    parser = argparse.ArgumentParser(description="Train Mask R-CNN to find Wally.")
+    parser.add_argument("command",
+                        metavar="<command>",
+                        help="'train'")
+    parser.add_argument('--dataset', required=False,
+                        metavar="/path/to/wally/dataset/",
+                        help="Directory of the Wally dataset")
+    parser.add_argument('--weights', required=True,
+                        metavar="path/to/weights.h5",
+                        help="Patj to weights .h5 file or 'coco'")
+    parser.add_argument('--logs', required=False,
+                        default=DEFAULT_LOGS_DIR,
+                        metavar="/path/to/logs/",
+                        help="Logs and checkpoints directory (default = logs/)")
+    parser.add_argument('--image', required=False,
+                        metavar="path or URL to image")
+    parser.add_argument('--vido', required=False,
+                        metavar="path or URL to video")
+    args = parser.parse_args()
+
+    # validate arguments
+    if (args.command == "train") :
+        assert args.dataset, "Argument --dataset is required for training"
+
+    print("Weights: ", args.weights)
+    print("Dataset: ", args.dataset)
+    print("Logs:", args.logs)
+
+    # configurations
+    if (args.command == "train") :
+        config = WallyConfig()
+    else :
+
+        class InferenceConfig(WallyConfig) :
+            # set the batch size to 1 since we'll be running inference on one image at a time.
+            # Batch size = GPU_COUNT * IMAGES_PER_GPU
+            GPU_COUNT = 1
+            IMAGES_PER_GPU = 1
+
+        config = InferenceConfig()
+
+    config.display()
+
+    # create model
+    if (args.command == "train") :
+        model = modellib.MaskRCNN(mode="training", config=config, model_dir=args.logs)
+    else :
+        model = modellib.MaskRCNN(mode="inference", config=config, model_dir=args.logs)
+
+    # select the weights file to load into the model
+    if (args.weights.lower() == "coco") :
+        weights_path = COCO_WEIGHTS_PATH
+        # download the weights file
+        if (not os.path.exists(weights_path)) :
+            utils.download_trained_weights(weights_path)
+    elif (args.weights.lower() == "last") :
+        # find the last trained weights
+        weights_path = model.find_last()[1]
+    elif (args.weights.lower() == "imagenet") :
+        # start from the ImageNet trained weights
+        weights_path = model.get_imagenet_weights()
+    else :
+        weights_path = args.weights
+
+    # load the weights from the weights file
+    print("Loading weights ", weights_path)
+    if (args.weights.lower() == "coco") :
+        # exclude the last layers because they require a matching number of classes
+        model.load_weights(weights_path, by_name=True, exclude=[
+            "mrcnn_class_logits", "mrcnn_bbox_fc",
+            "mrcnn_bbox", "mrcnn_mask"
+        ])
+    else :
+        model.load_weights(weights_path, by_name=True)
+
+    # train / evaluate model
+    if (args.command == "train") :
+        train(model)
+    else :
+        print("'{}' is not recognised. Use 'train' or 'splash'".format(args.command))
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
