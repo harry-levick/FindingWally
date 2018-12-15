@@ -2,3 +2,6 @@
 *.xml
 *.iml
 *.pyc
+/.floydexpt
+/.floydignore
+floyd.yml
