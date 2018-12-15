@@ -9,8 +9,6 @@ Usage: import the module (see Jupyter notebooks for examples), or run from
 """
 
 import os
-
-import args as args
 import numpy as np
 import sys
 import json
