@@ -5,3 +5,4 @@
 /.floydexpt
 /.floydignore
 floyd.yml
+*.floyddata
