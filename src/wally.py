@@ -29,11 +29,7 @@ if ROOT_DIR.endswith("samples/wally"):
 sys.path.append(ROOT_DIR)
 from config import Config
 import utils
-import model as modellib
-from modellib import MaskRCNN
-
-# Path to trained weights file
-COCO_WEIGHTS_PATH = os.path.join(ROOT_DIR, "mask_rcnn_wally_0030.h5")
+from model import MaskRCNN
 
 # Directory to save logs and model checkpoints, if not provided
 # through the command line argument --logs
@@ -63,7 +59,7 @@ class WallyConfig(Config):
     NUM_CLASSES = 1 + 1  # wally has 1 class
     STEPS_PER_EPOCH = 100
     DETECTION_MIN_CONFIDENCE = 0.9
-
+    # Path to trained weights file
     COCO_WEIGHTS_PATH = os.path.join(ROOT_DIR, "mask_rcnn_coco.h5")
     MODEL_DIR = os.path.join(ROOT_DIR, "logs")
     DATA_DIR = "datasets"
@@ -85,6 +81,23 @@ class WallyDataset(utils.Dataset):
 
         #assert subset in ["train", "val"]
         dataset_dir = os.path.join(dataset_dir, subset)
+
+        # Load annotations
+        # VGG Image Annotator (up to version 1.6) saves each image in the form:
+        # { 'filename': '28503151_5b5b7ec140_b.jpg',
+        #   'regions': {
+        #       '0': {
+        #           'region_attributes': {},
+        #           'shape_attributes': {
+        #               'all_points_x': [...],
+        #               'all_points_y': [...],
+        #               'name': 'polygon'}},
+        #       ... more regions ...
+        #   },
+        #   'size': 100202
+        # }
+        # We mostly care about the x and y coordinates of each region
+        # Note: In VIA 2.0, regions was changed from a dict to a list.
 
         annotations = json.load(open(os.path.join(dataset_dir, "via_region_data.json")))
         annotations = list(annotations.values())
@@ -226,7 +239,10 @@ if __name__ == '__main__':
     else:
         weights_path = args.weights
 
-    # Load weights
+    # here we load the coco weights. This is called TRANSFER LEARNING, where we use a set of weights (created for a
+    # different use than our intended use) to begin training on our data, instead of using randomly assigned weights.
+    # This means that we get a slightly better accuracy from the get-go, and means we can build on the already
+    # produced weights.
     print("Loading weights ", weights_path)
     if args.weights.lower() == "coco":
         # Exclude the last layers because they require a matching
