@@ -39,20 +39,34 @@ class Config(object):
     # Validation stats are also calculated at each epoch end and they
     # might take a while, so don't set this too small to avoid spending
     # a lot of time on validation stats.
-    STEPS_PER_EPOCH = 15
+    STEPS_PER_EPOCH = 1000
 
     # Number of validation steps to run at the end of every training epoch.
     # A bigger number improves accuracy of validation stats, but slows
     # down the training.
-    VALIDATION_STEPS = 1
+    VALIDATION_STEPS = 50
 
     # Backbone network architecture
-    # Supported values are: resnet50, resnet101
+    # Supported values are: resnet50, resnet101.
+    # You can also provide a callable that should have the signature
+    # of model.resnet_graph. If you do so, you need to supply a callable
+    # to COMPUTE_BACKBONE_SHAPE as well
     BACKBONE = "resnet101"
+
+    # Only useful if you supply a callable to BACKBONE. Should compute
+    # the shape of each layer of the FPN Pyramid.
+    # See model.compute_backbone_shapes
+    COMPUTE_BACKBONE_SHAPE = None
 
     # The strides of each layer of the FPN Pyramid. These values
     # are based on a Resnet101 backbone.
     BACKBONE_STRIDES = [4, 8, 16, 32, 64]
+
+    # Size of the fully-connected layers in the classification graph
+    FPN_CLASSIF_FC_LAYERS_SIZE = 1024
+
+    # Size of the top-down layers used to build the feature pyramid
+    TOP_DOWN_PYRAMID_SIZE = 256
 
     # Number of classification classes (including background)
     NUM_CLASSES = 1  # Override in sub-classes
@@ -70,7 +84,7 @@ class Config(object):
     RPN_ANCHOR_STRIDE = 1
 
     # Non-max suppression threshold to filter RPN proposals.
-    # You can reduce this during training to generate more propsals.
+    # You can increase this during training to generate more propsals.
     RPN_NMS_THRESHOLD = 0.7
 
     # How many anchors per image to use for RPN training
@@ -85,14 +99,34 @@ class Config(object):
     USE_MINI_MASK = True
     MINI_MASK_SHAPE = (56, 56)  # (height, width) of the mini-mask
 
-    # Input image resing
-    # Images are resized such that the smallest side is >= IMAGE_MIN_DIM and
-    # the longest side is <= IMAGE_MAX_DIM. In case both conditions can't
-    # be satisfied together the IMAGE_MAX_DIM is enforced.
+    # Input image resizing
+    # Generally, use the "square" resizing mode for training and inferencing
+    # and it should work well in most cases. In this mode, images are scaled
+    # up such that the small side is = IMAGE_MIN_DIM, but ensuring that the
+    # scaling doesn't make the long side > IMAGE_MAX_DIM. Then the image is
+    # padded with zeros to make it a square so multiple images can be put
+    # in one batch.
+    # Available resizing modes:
+    # none:   No resizing or padding. Return the image unchanged.
+    # square: Resize and pad with zeros to get a square image
+    #         of size [max_dim, max_dim].
+    # pad64:  Pads width and height with zeros to make them multiples of 64.
+    #         If IMAGE_MIN_DIM or IMAGE_MIN_SCALE are not None, then it scales
+    #         up before padding. IMAGE_MAX_DIM is ignored in this mode.
+    #         The multiple of 64 is needed to ensure smooth scaling of feature
+    #         maps up and down the 6 levels of the FPN pyramid (2**6=64).
+    # crop:   Picks random crops from the image. First, scales the image based
+    #         on IMAGE_MIN_DIM and IMAGE_MIN_SCALE, then picks a random crop of
+    #         size IMAGE_MIN_DIM x IMAGE_MIN_DIM. Can be used in training only.
+    #         IMAGE_MAX_DIM is not used in this mode.
+    IMAGE_RESIZE_MODE = "square"
     IMAGE_MIN_DIM = 800
     IMAGE_MAX_DIM = 1024
-    # If True, pad images with zeros such that they're (max_dim by max_dim)
-    IMAGE_PADDING = True  # currently, the False option is not supported
+    # Minimum scaling ratio. Checked after MIN_IMAGE_DIM and can force further
+    # up scaling. For example, if set to 2 then images are scaled up to double
+    # the width and height, or more, even if MIN_IMAGE_DIM doesn't require it.
+    # Howver, in 'square' mode, it can be overruled by IMAGE_MAX_DIM.
+    IMAGE_MIN_SCALE = 0
 
     # Image mean (RGB)
     MEAN_PIXEL = np.array([123.7, 116.8, 103.9])
@@ -110,6 +144,9 @@ class Config(object):
     # Pooled ROIs
     POOL_SIZE = 7
     MASK_POOL_SIZE = 14
+
+    # Shape of output mask
+    # To change this you also need to change the neural network mask branch
     MASK_SHAPE = [28, 28]
 
     # Maximum number of ground truth instances to use in one image
@@ -139,12 +176,31 @@ class Config(object):
     # Weight decay regularization
     WEIGHT_DECAY = 0.0001
 
+    # Loss weights for more precise optimization.
+    # Can be used for R-CNN training setup.
+    LOSS_WEIGHTS = {
+        "rpn_class_loss": 1.,
+        "rpn_bbox_loss": 1.,
+        "mrcnn_class_loss": 1.,
+        "mrcnn_bbox_loss": 1.,
+        "mrcnn_mask_loss": 1.
+    }
+
     # Use RPN ROIs or externally generated ROIs for training
     # Keep this True for most situations. Set to False if you want to train
     # the head branches on ROI generated by code rather than the ROIs from
     # the RPN. For example, to debug the classifier head without having to
     # train the RPN.
     USE_RPN_ROIS = True
+
+    # Train or freeze batch normalization layers
+    #     None: Train BN layers. This is the normal mode
+    #     False: Freeze BN layers. Good when using a small batch size
+    #     True: (don't use). Set layer in training mode even when inferencing
+    TRAIN_BN = False  # Defaulting to False since batch size is often small
+
+    # Gradient norm clipping
+    GRADIENT_CLIP_NORM = 5.0
 
     def __init__(self):
         """Set values of computed attributes."""
@@ -160,6 +216,9 @@ class Config(object):
             [[int(math.ceil(self.IMAGE_SHAPE[0] / stride)),
               int(math.ceil(self.IMAGE_SHAPE[1] / stride))]
              for stride in self.BACKBONE_STRIDES])
+
+        # Image meta data length
+        self.IMAGE_META_SIZE = 1 + 3 + 3 + 4 + 1 + self.NUM_CLASSES
 
     def display(self):
         """Display Configuration values."""
