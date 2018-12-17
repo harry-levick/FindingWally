@@ -22,7 +22,7 @@ import wally
 
 
 # root directory of the project
-ROOT_DIR = os.path.abspath("")
+ROOT_DIR = os.path.dirname(os.path.abspath(""))
 sys.path.append(ROOT_DIR)
 # local path to trained weights file
 MODEL_PATH = os.path.join(ROOT_DIR, "mask_rcnn_wally_0030.h5")
@@ -30,13 +30,6 @@ MODEL_PATH = os.path.join(ROOT_DIR, "mask_rcnn_wally_0030.h5")
 # dataset
 config = wally.WallyConfig()
 
-# override the training configurations with changes for inferencing
-class InferenceConfig(config.__class__) :
-    # run detection on one
-    GPU_COUNT = 1
-    IMAGES_PER_GPU = 1
-
-config = InferenceConfig()
 config.display()
 
 # device to load the neural network on
@@ -86,6 +79,26 @@ def color_splash(image, mask) :
 
     return splash
 
+def draw_box(box, image_np):
+    """
+        draws a rectanlge on the image
+    """
+    #expand the box by 50%
+    box += np.array([-(box[2] - box[0])/2, -(box[3] - box[1])/2, (box[2] - box[0])/2, (box[3] - box[1])/2])
+
+    fig = plt.figure()
+    ax = plt.Axes(fig, [0., 0., 1., 1.])
+    fig.add_axes(ax)
+
+    #draw blurred boxes around box
+    ax.add_patch(patches.Rectangle((0,0),box[1]*image_np.shape[1], image_np.shape[0],linewidth=0,edgecolor='none',facecolor='w',alpha=0.8))
+    ax.add_patch(patches.Rectangle((box[3]*image_np.shape[1],0),image_np.shape[1], image_np.shape[0],linewidth=0,edgecolor='none',facecolor='w',alpha=0.8))
+    ax.add_patch(patches.Rectangle((box[1]*image_np.shape[1],0),(box[3]-box[1])*image_np.shape[1], box[0]*image_np.shape[0],linewidth=0,edgecolor='none',facecolor='w',alpha=0.8))
+    ax.add_patch(patches.Rectangle((box[1]*image_np.shape[1],box[2]*image_np.shape[0]),(box[3]-box[1])*image_np.shape[1], image_np.shape[0],linewidth=0,edgecolor='none',facecolor='w',alpha=0.8))
+
+    return fig, ax
+
+
 def where_is_wally() :
     image = Image.open(os.path.join(ROOT_DIR, "input.jpg"))
     image = scale(image, (404, 718))
@@ -94,10 +107,12 @@ def where_is_wally() :
         results = model.detect([array(image)], verbose=1)
 
     if (results[0]['masks'].shape[0] != 0) :
+        print(results[0]['masks'][0])
         image = color_splash(array(image), results[0]['masks'])
+        #image, boxed = draw_box(image, results[0]['masks'])
 
     image = array(image)
-    skimage.io.imsave("output.png", image)
+    skimage.io.imsave("output1.png", image)
 
 
 if __name__ =='__main__' :

@@ -30,6 +30,7 @@ sys.path.append(ROOT_DIR)
 from config import Config
 import utils
 import model as modellib
+from modellib import MaskRCNN
 
 # Path to trained weights file
 COCO_WEIGHTS_PATH = os.path.join(ROOT_DIR, "mask_rcnn_wally_0030.h5")
@@ -62,6 +63,16 @@ class WallyConfig(Config):
     NUM_CLASSES = 1 + 1  # wally has 1 class
     STEPS_PER_EPOCH = 100
     DETECTION_MIN_CONFIDENCE = 0.9
+
+    COCO_WEIGHTS_PATH = os.path.join(ROOT_DIR, "mask_rcnn_coco.h5")
+    MODEL_DIR = os.path.join(ROOT_DIR, "logs")
+    DATA_DIR = "datasets"
+
+    def __init__(self, predict=False) :
+        if (predict) :
+            self.IMAGES_PER_GPU = 1
+            self.GP_COUNT = 1
+        super(self.__class__, self).__init__();
 
 
 ############################################################
@@ -194,15 +205,15 @@ if __name__ == '__main__':
 
     # Create model
     if args.command == "train":
-        model = modellib.MaskRCNN(mode="training", config=config,
-                                  model_dir=args.logs)
+        model = MaskRCNN(mode="training", config=config,
+                                  model_dir=config.MODEL_DIR)
     else:
-        model = modellib.MaskRCNN(mode="inference", config=config,
-                                  model_dir=args.logs)
+        model = MaskRCNN(mode="inference", config=config,
+                                  model_dir=config.MODEL_DIR)
 
     # Select weights file to load
     if args.weights.lower() == "coco":
-        weights_path = COCO_WEIGHTS_PATH
+        weights_path = config.COCO_WEIGHTS_PATH
         # Download weights file
         if not os.path.exists(weights_path):
             utils.download_trained_weights(weights_path)
