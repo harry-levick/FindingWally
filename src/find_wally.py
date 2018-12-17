@@ -18,47 +18,29 @@ import skimage
 import cv2
 from numpy import array
 from PIL import Image
-import wally
+from wally import WallyConfig
 
 
 # root directory of the project
-ROOT_DIR = os.path.dirname(os.path.abspath(""))
+ROOT_DIR = os.path.abspath("")
 sys.path.append(ROOT_DIR)
 # local path to trained weights file
-MODEL_PATH = os.path.join(ROOT_DIR, "mask_rcnn_wally_0030.h5")
+WEIGHTS_PATH = os.path.join(ROOT_DIR, "mask_rcnn_wally_0030.h5")
 
-# dataset
-config = wally.WallyConfig()
-
+config = WallyConfig(predict=True)
 config.display()
 
-# device to load the neural network on
-DEVICE = "/cpu:0"
 
 # inspect the model in training or inference modes
 # values: 'inference' or 'training'
 TEST_MODE = "inference"
 
 # create a model in inference mode
-with tf.device(DEVICE) :
-    model = modellib.MaskRCNN(mode="inference", model_dir=MODEL_PATH, config=config)
+model = modellib.MaskRCNN(mode="inference", model_dir=config.MODEL_DIR, config=config)
 
-model.load_weights(MODEL_PATH, by_name=True,
-                   exclude=[ "mrcnn_class_logits", "mrcnn_bbox_fc",
-                             "mrcnn_bbox", "mrcnn_mask"])
-print("Loading weights ", MODEL_PATH)
+model.load_weights(WEIGHTS_PATH, by_name=True)
+print("Loading weights ", WEIGHTS_PATH)
 
-def scale(image, max_size, method=Image.ANTIALIAS) :
-    """
-        resize 'image' to 'max_size' keeping the aspect ratio
-        and place it in center of white 'max_size' image
-    """
-    image.thumbnail(max_size, method)
-    offset = (int((max_size[0] - image.size[0]) / 2), int((max_size[1] - image.size[1]) / 2))
-    back = Image.new("RGB", max_size, "white")
-    back.paste(image, offset)
-
-    return back
 
 def color_splash(image, mask) :
     """
@@ -79,40 +61,19 @@ def color_splash(image, mask) :
 
     return splash
 
-def draw_box(box, image_np):
-    """
-        draws a rectanlge on the image
-    """
-    #expand the box by 50%
-    box += np.array([-(box[2] - box[0])/2, -(box[3] - box[1])/2, (box[2] - box[0])/2, (box[3] - box[1])/2])
-
-    fig = plt.figure()
-    ax = plt.Axes(fig, [0., 0., 1., 1.])
-    fig.add_axes(ax)
-
-    #draw blurred boxes around box
-    ax.add_patch(patches.Rectangle((0,0),box[1]*image_np.shape[1], image_np.shape[0],linewidth=0,edgecolor='none',facecolor='w',alpha=0.8))
-    ax.add_patch(patches.Rectangle((box[3]*image_np.shape[1],0),image_np.shape[1], image_np.shape[0],linewidth=0,edgecolor='none',facecolor='w',alpha=0.8))
-    ax.add_patch(patches.Rectangle((box[1]*image_np.shape[1],0),(box[3]-box[1])*image_np.shape[1], box[0]*image_np.shape[0],linewidth=0,edgecolor='none',facecolor='w',alpha=0.8))
-    ax.add_patch(patches.Rectangle((box[1]*image_np.shape[1],box[2]*image_np.shape[0]),(box[3]-box[1])*image_np.shape[1], image_np.shape[0],linewidth=0,edgecolor='none',facecolor='w',alpha=0.8))
-
-    return fig, ax
-
 
 def where_is_wally() :
-    image = Image.open(os.path.join(ROOT_DIR, "input.jpg"))
-    image = scale(image, (404, 718))
+    image = skimage.io.imread(sys.argv[1])
 
-    with tf.device(DEVICE) :
-        results = model.detect([array(image)], verbose=1)
+    mask = model.detect([array(image)], verbose=1)[0]['masks']
 
-    if (results[0]['masks'].shape[0] != 0) :
-        print(results[0]['masks'][0])
-        image = color_splash(array(image), results[0]['masks'])
-        #image, boxed = draw_box(image, results[0]['masks'])
+    if (mask.shape[0] != 0) :
+        image = color_splash(array(image), mask)
+    else :
+        print("Cant find Wally. Hmmm..")
 
-    image = array(image)
-    skimage.io.imsave("output1.png", image)
+    img = Image.fromarray(image, 'RGB')
+    img.show()
 
 
 if __name__ =='__main__' :
