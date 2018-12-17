@@ -74,7 +74,7 @@ class WallyConfig(Config):
 ############################################################
 #  Dataset
 ############################################################
-
+# this class extends the utils.Dataset class
 class WallyDataset(utils.Dataset):
     def load_Wally(self, dataset_dir, subset):
         self.add_class("wally", "1", "wally")
@@ -101,14 +101,14 @@ class WallyDataset(utils.Dataset):
 
         annotations = json.load(open(os.path.join(dataset_dir, "via_region_data.json")))
         annotations = list(annotations.values())
-
+        # We only want to add to the dataset images which we have annotations for (where the mask is drawn for the
+        # image), we know a mask is drawn if it has a 'regions' section in the JSON
         annotations = [a for a in annotations if a['regions']]
 
-        # Add images
+        # Add images to the dataset
         for a in annotations:
-            # Get the x, y coordinaets of points of the polygons that make up
-            # the outline of each object instance. There are stores in the
-            # shape_attributes (see json format above)
+            # Get the x, y coordinaets of points of the polygons that make up the outline of each object instance.
+            # There are stores in the shape_attributes (see json format)
             polygons = [r['shape_attributes'] for r in a['regions'].values()]
 
             image_path = os.path.join(dataset_dir, a['filename'])
