@@ -5,7 +5,7 @@ evaluation, my model does not perform all that well on the validation set. This 
 and the general complexity of the images in the evaluation set. Overall this model performs well on images similar to
 the ones provided in the training set, although extremely complex images it struggles on.
 
-![](data/train/23.jpg)
+![](datasets/train/23.jpg)
 ![](results/tmpdznyosjd.png)
 
 ## Data
